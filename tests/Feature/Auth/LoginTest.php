@@ -1,0 +1,177 @@
+<?php
+
+use App\Models\User;
+
+use function Pest\Laravel\assertDatabaseCount;
+use function Pest\Laravel\assertDatabaseHas;
+use function Pest\Laravel\assertDatabaseMissing;
+use function Pest\Laravel\postJson;
+
+test('guest can login with verified email', function () {
+
+    $password = fake()->password(8);
+    $user = User::factory()->verified()->create([
+        'name' => fake()->name(),
+        'email' => fake()->email(),
+        'password' => $password,
+    ]);
+
+    $data = [
+        'email' => $user->email,
+        'password' => $password,
+    ];
+
+    $response = postJson('/api/v1/login', $data);
+
+    $response->assertOk();
+
+    assertDatabaseHas('personal_access_tokens', [
+        'tokenable_type' => User::class,
+        'tokenable_id' => $user->id,
+    ]);
+
+    $response->assertJsonStructure([
+        'message',
+        'user' => [
+            'name',
+            'email',
+            'created_at',
+            'updated_at',
+        ],
+        'token',
+    ]);
+    $response->assertJson([
+        'user' => [
+            'email' => $data['email'],
+        ],
+    ]);
+    expect($response->json('token'))->toBeString()->not->toBeEmpty();
+});
+
+test('guest cannot login with unverified email', function () {
+
+    $password = fake()->password(8);
+    $user = User::factory()->create([
+        'name' => fake()->name(),
+        'email' => fake()->email(),
+        'password' => $password,
+    ]);
+
+    $data = [
+        'email' => $user->email,
+        'password' => $password,
+    ];
+
+    $response = postJson('/api/v1/login', $data);
+
+    $response->assertForbidden();
+
+    assertDatabaseMissing('personal_access_tokens', [
+        'tokenable_type' => User::class,
+        'tokenable_id' => $user->id,
+    ]);
+
+    $response->assertJson([
+        'message' => 'Email not verified.',
+    ]);
+});
+
+test('wrong password', function () {
+
+    $user = User::create([
+        'name' => fake()->name(),
+        'email' => fake()->email(),
+        'password' => fake()->password(8),
+    ]);
+
+    $data = [
+        'email' => $user->email,
+        'password' => '12345678',
+    ];
+
+    $response = postJson('/api/v1/login', $data);
+
+    $response->assertUnauthorized();
+
+    $response->assertJsonStructure([
+        'message',
+    ]);
+    $response->assertJson([
+        'message' => 'Invalid credentials.',
+    ]);
+
+    assertDatabaseCount('personal_access_tokens', 0);
+});
+
+test('not-existing email', function () {
+
+    $data = [
+        'email' => fake()->email(),
+        'password' => fake()->password(8),
+    ];
+
+    $response = postJson('/api/v1/login', $data);
+
+    $response->assertUnauthorized();
+
+    $response->assertJsonStructure([
+        'message',
+    ]);
+    $response->assertJson([
+        'message' => 'Invalid credentials.',
+    ]);
+
+    assertDatabaseCount('personal_access_tokens', 0);
+});
+
+test('rejects a non-string password during validation', function () {
+    $response = postJson('/api/v1/login', [
+        'email' => 'user@example.test',
+        'password' => ['invalid-password'],
+    ]);
+
+    $response->assertUnprocessable();
+    $response->assertExactJson([
+        'message' => 'The password field must be a string.',
+        'errors' => [
+            'password' => [
+                'The password field must be a string.',
+            ],
+        ],
+    ]);
+    assertDatabaseCount('personal_access_tokens', 0);
+});
+
+test('login cannot be requested more than 5 times for the same email', function () {
+    $email = fake()->email();
+
+    for ($i = 1; $i <= 5; $i++) {
+        postJson('/api/v1/login', [
+            'email' => $email,
+            'password' => 'password',
+        ]);
+    }
+
+    $response = postJson('/api/v1/login', [
+        'email' => $email,
+        'password' => 'password',
+    ]);
+
+    $response->assertTooManyRequests();
+});
+
+test('login cannot be requested more than 30 times from the same IP', function () {
+    for ($i = 1; $i <= 30; $i++) {
+        postJson('/api/v1/login', [
+            'email' => fake()->email(),
+            'password' => 'password',
+        ]);
+    }
+
+    $response = postJson('/api/v1/login', [
+        'email' => fake()->email(),
+        'password' => 'password',
+    ]);
+
+    $response->assertTooManyRequests();
+});
