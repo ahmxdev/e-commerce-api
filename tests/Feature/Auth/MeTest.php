@@ -14,7 +14,7 @@ test('authenticated user can get their profile', function () {
     $token = $user->createToken('auth-token');
 
     $response = getJson('/api/v1/me', [
-        'Authorization' => 'Bearer '.$token->plainTextToken,
+        'Authorization' => 'Bearer ' . $token->plainTextToken,
     ]);
 
     $response->assertOk();
@@ -25,6 +25,8 @@ test('authenticated user can get their profile', function () {
             'email',
             'created_at',
             'updated_at',
+            'roles',
+            'permissions',
         ],
     ]);
 
