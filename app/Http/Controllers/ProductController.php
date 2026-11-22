@@ -9,6 +9,7 @@ use App\Models\Product;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
@@ -40,9 +41,28 @@ class ProductController extends Controller
         return new ProductResource($product->refresh());
     }
 
-    public function destroy(Product $product): Response
+    public function destroy(Product $product): JsonResponse|Response
     {
-        $product->delete();
+        $productWasDeleted = DB::transaction(function () use ($product): bool {
+            $lockedProduct = Product::query()
+                ->whereKey($product->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($lockedProduct->cartItems()->exists()) {
+                return false;
+            }
+
+            $lockedProduct->delete();
+
+            return true;
+        });
+
+        if (! $productWasDeleted) {
+            return response()->json([
+                'message' => 'The product cannot be deleted while it is in a cart.',
+            ], Response::HTTP_CONFLICT);
+        }
 
         return response()->noContent();
     }
