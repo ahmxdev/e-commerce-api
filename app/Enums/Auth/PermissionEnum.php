@@ -2,7 +2,7 @@
 
 namespace App\Enums\Auth;
 
-enum PermissionEnum
+enum PermissionEnum: string
 {
-    //
+    case ManageProducts = 'manage-products';
 }
