@@ -158,3 +158,7 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 - After the feature tests pass, ask the user to run the complete suite with `php artisan test --compact`.
 
 </laravel-boost-guidelines>
+
+## Collaboration Workflow
+
+For feature work with the user, follow [AGENT_WORKFLOW.md](AGENT_WORKFLOW.md) for the sequential task process and established cart decisions.
