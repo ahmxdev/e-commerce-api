@@ -37,24 +37,48 @@ test('store adds one unit to the authenticated user cart', function (): void {
     ]);
 });
 
-test('repeated store leaves the existing product quantity unchanged', function (): void {
+test('store increments an existing product quantity by one', function (): void {
     $user = User::factory()->create();
-    $product = Product::factory()->create(['price' => '8.00', 'stock' => 4]);
+    $product = Product::factory()->create(['price' => '8.00', 'stock' => 2]);
     $headers = storeCartItemHeaders($user);
 
     $this->postJson('/api/v1/cart/items', ['product_id' => $product->id], $headers)
-        ->assertCreated();
+        ->assertCreated()
+        ->assertJsonPath('data.items.0.quantity', 1);
 
     $this->postJson('/api/v1/cart/items', ['product_id' => $product->id], $headers)
         ->assertOk()
-        ->assertJsonPath('data.items.0.quantity', 1)
-        ->assertJsonPath('data.subtotal', '8.00');
+        ->assertJsonCount(1, 'data.items')
+        ->assertJsonPath('data.items.0.quantity', 2)
+        ->assertJsonPath('data.items.0.line_total', '16.00')
+        ->assertJsonPath('data.subtotal', '16.00');
 
     $this->assertDatabaseCount(CartItem::class, 1);
-    $this->assertDatabaseCount(Cart::class, 1);
     $this->assertDatabaseHas('cart_items', [
         'product_id' => $product->id,
-        'quantity' => 1,
+        'quantity' => 2,
+    ]);
+});
+
+test('store returns 409 and preserves quantity when an increment exceeds stock', function (): void {
+    $user = User::factory()->create();
+    $cart = Cart::factory()->for($user)->create();
+    $product = Product::factory()->create(['stock' => 2]);
+    CartItem::factory()->for($cart)->for($product)->create(['quantity' => 2]);
+
+    $this->postJson('/api/v1/cart/items', ['product_id' => $product->id], storeCartItemHeaders($user))
+        ->assertConflict()
+        ->assertJsonPath('message', 'Product is out of stock.');
+
+    $this->assertDatabaseCount(CartItem::class, 1);
+    $this->assertDatabaseHas('cart_items', [
+        'cart_id' => $cart->id,
+        'product_id' => $product->id,
+        'quantity' => 2,
+    ]);
+    $this->assertDatabaseHas('products', [
+        'id' => $product->id,
+        'stock' => 2,
     ]);
 });
 

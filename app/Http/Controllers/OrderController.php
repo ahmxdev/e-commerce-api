@@ -108,7 +108,7 @@ class OrderController extends Controller
                 ->orderBy('id')
                 ->lockForUpdate()
                 ->get()
-                ->keyBy(fn (Product $product): int => (int) $product->getKey());
+                ->keyBy(fn(Product $product): int => (int) $product->getKey());
 
             abort_if(
                 $productsById->count() !== $cartItems->count(),
@@ -165,15 +165,6 @@ class OrderController extends Controller
             ->setStatusCode(Response::HTTP_CREATED);
     }
 
-    private function authenticatedUser(Request $request): User
-    {
-        $user = $request->user();
-
-        abort_unless($user instanceof User, Response::HTTP_UNAUTHORIZED);
-
-        return $user;
-    }
-
     private function lockUser(User $user): User
     {
         return User::query()
@@ -215,7 +206,7 @@ class OrderController extends Controller
             ->orderBy('id')
             ->lockForUpdate()
             ->get()
-            ->keyBy(fn (Product $product): int => (int) $product->getKey());
+            ->keyBy(fn(Product $product): int => (int) $product->getKey());
 
         foreach ($orderItems as $orderItem) {
             $product = $productsById->get((int) $orderItem->product_id);
