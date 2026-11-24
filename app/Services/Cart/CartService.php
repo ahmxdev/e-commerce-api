@@ -77,7 +77,8 @@ class CartService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($quantity > $product->stock) {
+            // Only validate stock when increasing the item quantity.
+            if ($quantity > $cartItem->quantity && $quantity > $product->stock) {
                 throw new InsufficientProductStockException;
             }
 
