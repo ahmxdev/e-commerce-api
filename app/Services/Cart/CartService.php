@@ -3,6 +3,7 @@
 namespace App\Services\Cart;
 
 use App\DTOs\Cart\AddCartItemResult;
+use App\Exceptions\InsufficientProductStockException;
 use App\Models\Cart;
 use App\Models\Product;
 use App\Models\User;
@@ -29,14 +30,18 @@ class CartService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            abort_if($product->stock < 1, 409, 'Product is out of stock.');
+            if ($product->stock < 1) {
+                throw new InsufficientProductStockException;
+            }
 
             $cartItem = $cart->items()
                 ->where('product_id', $product->getKey())
                 ->first();
 
             if ($cartItem) {
-                abort_if($product->stock < $cartItem->quantity + 1, 409, 'Product is out of stock.');
+                if ($product->stock < $cartItem->quantity + 1) {
+                    throw new InsufficientProductStockException;
+                }
 
                 $cartItem->update(['quantity' => $cartItem->quantity + 1]);
 
@@ -72,7 +77,9 @@ class CartService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            abort_if($quantity > $product->stock, 409, 'The requested quantity exceeds available stock.');
+            if ($quantity > $product->stock) {
+                throw new InsufficientProductStockException;
+            }
 
             $cartItem->update(['quantity' => $quantity]);
 

@@ -68,7 +68,7 @@ test('store returns 409 and preserves quantity when an increment exceeds stock',
 
     $this->postJson('/api/v1/cart/items', ['product_id' => $product->id], storeCartItemHeaders($user))
         ->assertConflict()
-        ->assertJsonPath('message', 'Product is out of stock.');
+        ->assertJsonPath('message', 'The requested quantity exceeds available stock.');
 
     $this->assertDatabaseCount(CartItem::class, 1);
     $this->assertDatabaseHas('cart_items', [
@@ -88,7 +88,7 @@ test('store returns 409 and rolls back for an out-of-stock product', function ()
 
     $this->postJson('/api/v1/cart/items', ['product_id' => $product->id], storeCartItemHeaders($user))
         ->assertConflict()
-        ->assertJsonPath('message', 'Product is out of stock.');
+        ->assertJsonPath('message', 'The requested quantity exceeds available stock.');
 
     $this->assertDatabaseCount(Cart::class, 0);
     $this->assertDatabaseCount(CartItem::class, 0);
