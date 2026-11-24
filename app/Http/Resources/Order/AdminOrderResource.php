@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Resources;
+namespace App\Http\Resources\Order;
 
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -17,7 +17,7 @@ class AdminOrderResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'customer' => $this->whenLoaded('user', fn (User $user): array => [
+            'customer' => $this->whenLoaded('user', fn(User $user): array => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,

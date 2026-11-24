@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Resources;
+namespace App\Http\Resources\Cart;
 
+use App\Http\Resources\Product\ProductResource;
 use App\Models\Product;
 use Brick\Money\Money;
 use Illuminate\Http\Request;
@@ -20,7 +21,7 @@ class CartItemResource extends JsonResource
             'id' => $this->id,
             'product' => ProductResource::make($this->whenLoaded('product')),
             'quantity' => $this->quantity,
-            'unit_price' => $this->whenLoaded('product', fn (Product $product): string => $product->price),
+            'unit_price' => $this->whenLoaded('product', fn(Product $product): string => $product->price),
             'line_total' => $this->whenLoaded('product', function (Product $product): string {
                 return Money::of((string) $product->price, 'EGP')->multipliedBy($this->quantity)->getAmount()->toString();
             }),

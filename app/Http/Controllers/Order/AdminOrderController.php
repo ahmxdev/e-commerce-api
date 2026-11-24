@@ -1,16 +1,14 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Order;
 
 use App\Enums\Order\OrderStatusEnum;
+use App\Http\Controllers\Controller;
 use App\Http\Requests\Order\UpdateOrderStatusRequest;
-use App\Http\Resources\AdminOrderResource;
+use App\Http\Resources\Order\AdminOrderResource;
 use App\Models\Order;
-use App\Models\Product;
 use App\Services\Order\OrderService;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Http\Response;
-use Illuminate\Support\Facades\DB;
 
 class AdminOrderController extends Controller
 {

@@ -1,8 +1,8 @@
 <?php
 
 use App\Enums\Auth\PermissionEnum;
-use App\Http\Controllers\AdminOrderController;
-use App\Http\Controllers\OrderController;
+use App\Http\Controllers\Order\AdminOrderController;
+use App\Http\Controllers\Order\OrderController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function (): void {
@@ -14,12 +14,12 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::prefix('admin')
         ->name('admin.')
         ->group(function (): void {
-            Route::middleware('can:'.PermissionEnum::ViewOrders->value)->group(function (): void {
+            Route::middleware('can:' . PermissionEnum::ViewOrders->value)->group(function (): void {
                 Route::get('/orders', [AdminOrderController::class, 'index'])->name('orders.index');
                 Route::get('/orders/{orderId}', [AdminOrderController::class, 'show'])->name('orders.show');
             });
 
-            Route::middleware('can:'.PermissionEnum::ManageOrders->value)->group(function (): void {
+            Route::middleware('can:' . PermissionEnum::ManageOrders->value)->group(function (): void {
                 Route::patch('/orders/{orderId}/status', [AdminOrderController::class, 'updateStatus'])
                     ->name('orders.status.update');
             });

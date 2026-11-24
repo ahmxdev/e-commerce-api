@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Resources;
+namespace App\Http\Resources\Cart;
 
 use App\Models\CartItem;
 use Brick\Money\Money;
@@ -21,7 +21,7 @@ class CartResource extends JsonResource
             'id' => $this->id,
             'items' => CartItemResource::collection($this->whenLoaded('items')),
             'subtotal' => $this->whenLoaded('items', function (Collection $items): ?string {
-                if ($items->contains(fn (CartItem $cartItem): bool => ! $cartItem->relationLoaded('product'))) {
+                if ($items->contains(fn(CartItem $cartItem): bool => ! $cartItem->relationLoaded('product'))) {
                     return null;
                 }
 
