@@ -11,6 +11,7 @@ use App\Http\Resources\OrderResource;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
+use Brick\Money\Money;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -115,7 +116,7 @@ class OrderController extends Controller
                 'A product in your cart is no longer available.'
             );
 
-            $orderTotalInCents = 0;
+            $orderTotal = Money::of(0, 'EGP');
 
             /** @var list<array{product_id: int|string, product_name: string, unit_price: string, quantity: int}> $orderItems */
             $orderItems = [];
@@ -129,8 +130,8 @@ class OrderController extends Controller
                     "Insufficient stock for product: {$product->name}."
                 );
 
-                $unitPriceInCents = self::amountToCents((string) $product->price);
-                $orderTotalInCents += $unitPriceInCents * $cartItem->quantity;
+                $unitPrice = Money::of((string) $product->price, 'EGP');
+                $orderTotal = $orderTotal->plus($unitPrice->multipliedBy($cartItem->quantity));
 
                 $orderItems[] = [
                     'product_id' => $product->getKey(),
@@ -144,7 +145,7 @@ class OrderController extends Controller
                 'status' => OrderStatusEnum::Pending->value,
                 'payment_method' => PaymentMethodEnum::CashOnDelivery->value,
                 'shipping_address' => $shippingAddress,
-                'total_amount' => self::formatCents($orderTotalInCents),
+                'total_amount' => $orderTotal->getAmount()->toString(),
             ]);
 
             $order->items()->createMany($orderItems);
@@ -223,17 +224,5 @@ class OrderController extends Controller
                 $product->increment('stock', $orderItem->quantity);
             }
         }
-    }
-
-    private static function amountToCents(string $amount): int
-    {
-        [$wholeUnits, $fractionalUnits] = array_pad(explode('.', $amount, 2), 2, '0');
-
-        return ((int) $wholeUnits * 100) + (int) str_pad($fractionalUnits, 2, '0');
-    }
-
-    private static function formatCents(int $amountInCents): string
-    {
-        return intdiv($amountInCents, 100).'.'.str_pad((string) ($amountInCents % 100), 2, '0', STR_PAD_LEFT);
     }
 }

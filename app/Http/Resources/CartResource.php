@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\CartItem;
+use Brick\Money\Money;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -24,27 +25,16 @@ class CartResource extends JsonResource
                     return null;
                 }
 
-                $subtotalInCents = $items->sum(function (CartItem $cartItem): int {
+                $subtotal = Money::of(0, 'EGP');
+                foreach ($items as $cartItem) {
                     $product = $cartItem->getRelation('product');
-                    $unitPriceInCents = self::amountToCents((string) $product->price);
+                    $unitPrice = Money::of((string) $product->price, 'EGP');
+                    $lineTotal = $unitPrice->multipliedBy($cartItem->quantity);
+                    $subtotal = $subtotal->plus($lineTotal);
+                }
 
-                    return $unitPriceInCents * $cartItem->quantity;
-                });
-
-                return self::formatCents($subtotalInCents);
+                return $subtotal->getAmount()->toString();
             }),
         ];
-    }
-
-    private static function amountToCents(string $amount): int
-    {
-        [$wholeUnits, $fractionalUnits] = array_pad(explode('.', $amount, 2), 2, '0');
-
-        return ((int) $wholeUnits * 100) + (int) str_pad($fractionalUnits, 2, '0');
-    }
-
-    private static function formatCents(int $amountInCents): string
-    {
-        return intdiv($amountInCents, 100).'.'.str_pad((string) ($amountInCents % 100), 2, '0', STR_PAD_LEFT);
     }
 }

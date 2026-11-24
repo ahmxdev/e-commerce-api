@@ -114,6 +114,58 @@ test('store creates an order from cart snapshots and clears the cart', function 
     $this->assertDatabaseCount(OrderItem::class, 1);
 });
 
+test('store calculates the order total across multiple products', function (): void {
+    $user = User::factory()->create();
+    $cart = Cart::factory()->for($user)->create();
+    $firstProduct = Product::factory()->create([
+        'name' => 'Canvas Backpack',
+        'price' => '12.50',
+        'stock' => 8,
+    ]);
+    $secondProduct = Product::factory()->create([
+        'name' => 'Travel Mug',
+        'price' => '7.25',
+        'stock' => 6,
+    ]);
+    CartItem::factory()->for($cart)->for($firstProduct)->create(['quantity' => 2]);
+    CartItem::factory()->for($cart)->for($secondProduct)->create(['quantity' => 3]);
+    $headers = ['Authorization' => 'Bearer '.$user->createToken('store-order-api')->plainTextToken];
+
+    $response = $this->postJson('/api/v1/orders', [
+        'shipping_address' => '10 River Street, Cairo',
+    ], $headers)
+        ->assertCreated()
+        ->assertJsonPath('data.total_amount', '46.75')
+        ->assertJsonCount(2, 'data.items');
+
+    $orderId = $response->json('data.id');
+    $orderItemsByProductId = collect($response->json('data.items'))->keyBy('product_id');
+
+    expect($orderItemsByProductId->get($firstProduct->id, [])['line_total'] ?? null)->toBe('25.00');
+    expect($orderItemsByProductId->get($secondProduct->id, [])['line_total'] ?? null)->toBe('21.75');
+
+    $this->assertDatabaseHas('orders', [
+        'id' => $orderId,
+        'user_id' => $user->id,
+        'total_amount' => '46.75',
+    ]);
+    $this->assertDatabaseHas('order_items', [
+        'order_id' => $orderId,
+        'product_id' => $firstProduct->id,
+        'unit_price' => '12.50',
+        'quantity' => 2,
+    ]);
+    $this->assertDatabaseHas('order_items', [
+        'order_id' => $orderId,
+        'product_id' => $secondProduct->id,
+        'unit_price' => '7.25',
+        'quantity' => 3,
+    ]);
+    $this->assertDatabaseHas('products', ['id' => $firstProduct->id, 'stock' => 6]);
+    $this->assertDatabaseHas('products', ['id' => $secondProduct->id, 'stock' => 3]);
+    $this->assertDatabaseCount('cart_items', 0);
+});
+
 test('store returns 409 and keeps the cart when stock is insufficient', function (): void {
     $user = User::factory()->create();
     $cart = Cart::factory()->for($user)->create();
