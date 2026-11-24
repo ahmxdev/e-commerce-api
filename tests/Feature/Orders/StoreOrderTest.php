@@ -16,7 +16,7 @@ test('store returns 401 for a guest', function (): void {
 
 test('store returns 422 when shipping address is missing', function (): void {
     $user = User::factory()->create();
-    $headers = ['Authorization' => 'Bearer '.$user->createToken('store-order-api')->plainTextToken];
+    $headers = ['Authorization' => 'Bearer ' . $user->createToken('store-order-api')->plainTextToken];
 
     $this->postJson('/api/v1/orders', [], $headers)
         ->assertUnprocessable()
@@ -27,7 +27,7 @@ test('store returns 422 when shipping address is missing', function (): void {
 
 test('store returns 422 when shipping address is not a string', function (): void {
     $user = User::factory()->create();
-    $headers = ['Authorization' => 'Bearer '.$user->createToken('store-order-api')->plainTextToken];
+    $headers = ['Authorization' => 'Bearer ' . $user->createToken('store-order-api')->plainTextToken];
 
     $this->postJson('/api/v1/orders', ['shipping_address' => ['10 River Street']], $headers)
         ->assertUnprocessable()
@@ -36,7 +36,7 @@ test('store returns 422 when shipping address is not a string', function (): voi
 
 test('store returns 422 when shipping address exceeds 5000 characters', function (): void {
     $user = User::factory()->create();
-    $headers = ['Authorization' => 'Bearer '.$user->createToken('store-order-api')->plainTextToken];
+    $headers = ['Authorization' => 'Bearer ' . $user->createToken('store-order-api')->plainTextToken];
 
     $this->postJson('/api/v1/orders', ['shipping_address' => str_repeat('a', 5001)], $headers)
         ->assertUnprocessable()
@@ -46,7 +46,7 @@ test('store returns 422 when shipping address exceeds 5000 characters', function
 test('store returns 409 when the authenticated user has no cart items', function (): void {
     $user = User::factory()->create();
     Cart::factory()->for($user)->create();
-    $headers = ['Authorization' => 'Bearer '.$user->createToken('store-order-api')->plainTextToken];
+    $headers = ['Authorization' => 'Bearer ' . $user->createToken('store-order-api')->plainTextToken];
 
     $this->postJson('/api/v1/orders', ['shipping_address' => '10 River Street'], $headers)
         ->assertConflict()
@@ -57,7 +57,7 @@ test('store returns 409 when the authenticated user has no cart items', function
 
 test('store returns 409 when the authenticated user has no cart', function (): void {
     $user = User::factory()->create();
-    $headers = ['Authorization' => 'Bearer '.$user->createToken('store-order-api')->plainTextToken];
+    $headers = ['Authorization' => 'Bearer ' . $user->createToken('store-order-api')->plainTextToken];
 
     $this->postJson('/api/v1/orders', ['shipping_address' => '10 River Street'], $headers)
         ->assertConflict()
@@ -76,7 +76,7 @@ test('store creates an order from cart snapshots and clears the cart', function 
         'stock' => 8,
     ]);
     CartItem::factory()->for($cart)->for($product)->create(['quantity' => 2]);
-    $headers = ['Authorization' => 'Bearer '.$user->createToken('store-order-api')->plainTextToken];
+    $headers = ['Authorization' => 'Bearer ' . $user->createToken('store-order-api')->plainTextToken];
 
     $response = $this->postJson('/api/v1/orders', [
         'shipping_address' => '10 River Street, Cairo',
@@ -129,7 +129,7 @@ test('store calculates the order total across multiple products', function (): v
     ]);
     CartItem::factory()->for($cart)->for($firstProduct)->create(['quantity' => 2]);
     CartItem::factory()->for($cart)->for($secondProduct)->create(['quantity' => 3]);
-    $headers = ['Authorization' => 'Bearer '.$user->createToken('store-order-api')->plainTextToken];
+    $headers = ['Authorization' => 'Bearer ' . $user->createToken('store-order-api')->plainTextToken];
 
     $response = $this->postJson('/api/v1/orders', [
         'shipping_address' => '10 River Street, Cairo',
@@ -171,11 +171,11 @@ test('store returns 409 and keeps the cart when stock is insufficient', function
     $cart = Cart::factory()->for($user)->create();
     $product = Product::factory()->create(['stock' => 1]);
     CartItem::factory()->for($cart)->for($product)->create(['quantity' => 2]);
-    $headers = ['Authorization' => 'Bearer '.$user->createToken('store-order-api')->plainTextToken];
+    $headers = ['Authorization' => 'Bearer ' . $user->createToken('store-order-api')->plainTextToken];
 
     $this->postJson('/api/v1/orders', ['shipping_address' => '10 River Street'], $headers)
         ->assertConflict()
-        ->assertJsonPath('message', "Insufficient stock for product: {$product->name}.");
+        ->assertJsonPath('message', "The requested quantity exceeds available stock.");
 
     $this->assertDatabaseCount('orders', 0);
     $this->assertDatabaseCount('order_items', 0);

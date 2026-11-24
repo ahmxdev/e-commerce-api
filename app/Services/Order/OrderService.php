@@ -4,6 +4,8 @@ namespace App\Services\Order;
 
 use App\Enums\Order\OrderStatusEnum;
 use App\Enums\Order\PaymentMethodEnum;
+use App\Exceptions\InsufficientProductStockException;
+use App\Exceptions\OrderConflictException;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
@@ -21,11 +23,9 @@ class OrderService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            abort_if(
-                $order->status !== OrderStatusEnum::Pending,
-                409,
-                'Only pending orders can be cancelled by the customer.'
-            );
+            if ($order->status !== OrderStatusEnum::Pending) {
+                throw new OrderConflictException('Only pending orders can be cancelled by the customer.');
+            }
 
             $this->transitionOrderStatus($order, OrderStatusEnum::Cancelled);
 
@@ -39,13 +39,17 @@ class OrderService
             $lockedUser = $this->lockUser($user);
             $cart = $lockedUser->cart()->first();
 
-            abort_if($cart === null, 409, 'Your cart is empty.');
+            if ($cart === null) {
+                throw new OrderConflictException('Your cart is empty.');
+            }
 
             $cartItems = $cart->items()
                 ->orderBy('product_id')
                 ->get();
 
-            abort_if($cartItems->isEmpty(), 409, 'Your cart is empty.');
+            if ($cartItems->isEmpty()) {
+                throw new OrderConflictException('Your cart is empty.');
+            }
 
             $productIds = $cartItems->pluck('product_id')->all();
 
@@ -57,11 +61,6 @@ class OrderService
                 ->get()
                 ->keyBy(fn(Product $product): int => (int) $product->getKey());
 
-            abort_if(
-                $productsById->count() !== $cartItems->count(),
-                409,
-                'A product in your cart is no longer available.'
-            );
 
             $orderTotal = Money::of(0, 'EGP');
 
@@ -71,11 +70,9 @@ class OrderService
             foreach ($cartItems as $cartItem) {
                 $product = $productsById->get((int) $cartItem->product_id);
 
-                abort_if(
-                    $product->stock < $cartItem->quantity,
-                    409,
-                    "Insufficient stock for product: {$product->name}."
-                );
+                if ($product->stock < $cartItem->quantity) {
+                    throw new InsufficientProductStockException();
+                }
 
                 $unitPrice = Money::of((string) $product->price, 'EGP');
                 $orderTotal = $orderTotal->plus($unitPrice->multipliedBy($cartItem->quantity));
@@ -124,11 +121,9 @@ class OrderService
 
     private function transitionOrderStatus(Order $order, OrderStatusEnum $nextStatus): void
     {
-        abort_unless(
-            $order->status->canTransitionTo($nextStatus),
-            409,
-            'The requested order status transition is not allowed.'
-        );
+        if (! $order->status->canTransitionTo($nextStatus)) {
+            throw new OrderConflictException('The requested order status transition is not allowed.');
+        }
 
         if ($nextStatus === OrderStatusEnum::Cancelled) {
             $this->restoreOrderStock($order);
