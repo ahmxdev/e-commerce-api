@@ -20,7 +20,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
             });
 
             Route::middleware('can:'.PermissionEnum::ManageOrders->value)->group(function (): void {
-                Route::patch('/orders/{orderId}/status', [OrderController::class, 'updateStatus'])
+                Route::patch('/orders/{orderId}/status', [AdminOrderController::class, 'updateStatus'])
                     ->name('orders.status.update');
             });
         });
