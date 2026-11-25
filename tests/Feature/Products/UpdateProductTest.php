@@ -23,7 +23,7 @@ test('permitted user can partially update a product', function (): void {
         'stock' => 8,
     ]);
 
-    $this->patchJson("/api/v1/products/{$product->id}", ['stock' => 3], updateProductManagerHeaders())
+    $this->patchJson("/api/v1/admin/products/{$product->id}", ['stock' => 3], updateProductManagerHeaders())
         ->assertOk()
         ->assertJsonPath('data.name', 'Desk Lamp')
         ->assertJsonPath('data.price', '49.99')
@@ -43,7 +43,7 @@ test('returns 403 and leaves product unchanged for a user without permission', f
         'Authorization' => 'Bearer '.$user->createToken('user-token')->plainTextToken,
     ];
 
-    $this->patchJson("/api/v1/products/{$product->id}", ['stock' => 3], $headers)
+    $this->patchJson("/api/v1/admin/products/{$product->id}", ['stock' => 3], $headers)
         ->assertForbidden();
 
     $this->assertDatabaseHas(Product::class, [
@@ -56,7 +56,7 @@ test('returns 422 and preserves stock when an update sets negative stock', funct
     $product = Product::factory()->create(['stock' => 8]);
 
     $this->patchJson(
-        "/api/v1/products/{$product->id}",
+        "/api/v1/admin/products/{$product->id}",
         ['stock' => -1],
         updateProductManagerHeaders()
     )
@@ -73,7 +73,7 @@ test('returns 422 when an update contains no product fields', function (): void 
     $product = Product::factory()->create(['stock' => 8]);
 
     $this->patchJson(
-        "/api/v1/products/{$product->id}",
+        "/api/v1/admin/products/{$product->id}",
         [],
         updateProductManagerHeaders()
     )

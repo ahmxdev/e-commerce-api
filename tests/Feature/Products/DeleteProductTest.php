@@ -16,7 +16,7 @@ test('permitted user can delete a product', function (): void {
         'Authorization' => 'Bearer '.$user->createToken('product-api')->plainTextToken,
     ];
 
-    $this->deleteJson("/api/v1/products/{$product->id}", [], $headers)
+    $this->deleteJson("/api/v1/admin/products/{$product->id}", [], $headers)
         ->assertNoContent();
 
     $this->assertModelMissing($product);
@@ -25,7 +25,7 @@ test('permitted user can delete a product', function (): void {
 test('guest cannot delete a product', function (): void {
     $product = Product::factory()->create();
 
-    $this->deleteJson("/api/v1/products/{$product->id}")
+    $this->deleteJson("/api/v1/admin/products/{$product->id}")
         ->assertUnauthorized();
 
     $this->assertModelExists($product);
@@ -38,7 +38,7 @@ test('returns 403 and keeps product for a user without permission', function ():
         'Authorization' => 'Bearer '.$user->createToken('user-token')->plainTextToken,
     ];
 
-    $this->deleteJson("/api/v1/products/{$product->id}", [], $headers)
+    $this->deleteJson("/api/v1/admin/products/{$product->id}", [], $headers)
         ->assertForbidden();
 
     $this->assertModelExists($product);
@@ -55,7 +55,7 @@ test('returns 409 and keeps product while it is in a cart', function (): void {
         'Authorization' => 'Bearer '.$user->createToken('product-api')->plainTextToken,
     ];
 
-    $this->deleteJson("/api/v1/products/{$product->id}", [], $headers)
+    $this->deleteJson("/api/v1/admin/products/{$product->id}", [], $headers)
         ->assertConflict()
         ->assertJsonPath('message', 'The product cannot be deleted while it is in a cart.');
 

@@ -24,7 +24,7 @@ test('permitted user can create a product', function (): void {
         'stock' => 5,
     ];
 
-    $response = $this->postJson('/api/v1/products', $productData, storeProductManagerHeaders())
+    $response = $this->postJson('/api/v1/admin/products', $productData, storeProductManagerHeaders())
         ->assertCreated()
         ->assertJsonPath('data.name', 'Desk Lamp')
         ->assertJsonPath('data.price', '49.99');
@@ -34,14 +34,14 @@ test('permitted user can create a product', function (): void {
 });
 
 test('guest cannot create a product', function (): void {
-    $this->postJson('/api/v1/products', [])
+    $this->postJson('/api/v1/admin/products', [])
         ->assertUnauthorized();
 
     $this->assertDatabaseCount(Product::class, 0);
 });
 
 test('returns 422 when required product fields are missing', function (): void {
-    $this->postJson('/api/v1/products', [], storeProductManagerHeaders())
+    $this->postJson('/api/v1/admin/products', [], storeProductManagerHeaders())
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['name', 'description', 'price', 'stock'])
         ->assertJsonPath('errors.name.0', 'The name field is required.');
@@ -58,7 +58,7 @@ test('returns 422 for invalid product prices and stock values', function (string
     ];
     $productData[$field] = $value;
 
-    $this->postJson('/api/v1/products', $productData, storeProductManagerHeaders())
+    $this->postJson('/api/v1/admin/products', $productData, storeProductManagerHeaders())
         ->assertUnprocessable()
         ->assertJsonPath("errors.{$field}.0", $message);
 
