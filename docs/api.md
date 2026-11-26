@@ -3,7 +3,7 @@
 ## Conventions
 
 - Base path: `/api/v1`
-- Send and receive JSON. Include `Accept: application/json`; include `Content-Type: application/json` when sending a JSON body.
+- Send and receive JSON. Include `Accept: application/json`; include `Content-Type: application/json` when sending a JSON body. Product image upload endpoints use `multipart/form-data`.
 - Protected routes require `Authorization: Bearer <token>`. Access tokens expire after 24 hours.
 - Laravel JSON resources are wrapped in `data`. Authentication responses use their explicit `user`, `token`, or `message` fields. Paginated resources include `data`, `links`, and `meta`.
 - Prices and totals are decimal strings in EGP. Quantities, IDs, and stock are integers.
@@ -67,21 +67,28 @@ The login limiter permits up to 5 requests per minute per email and 30 per minut
 
 ## Products
 
-Public product responses contain `id`, `name`, `description`, `price`, `stock`, `created_at`, and `updated_at`.
+Product resources contain `id`, `name`, `description`, `price`, `stock`, `images`, `created_at`, and `updated_at`. Each image contains `id`, `url`, `position`, and `is_primary`. Product lists include only the primary image; product details and administrative product responses include all images.
 
 | Method and path | Access | Request | Success and common errors |
 | --- | --- | --- | --- |
-| `GET /products` | Public | Optional `page` query parameter | `200`; newest product IDs first; 15 products per page by default. |
-| `GET /products/{product}` | Public | Product ID in path | `200`; missing product `404`. |
-| `POST /admin/products` | `manage-products` | `name`, `description`, `price`, `stock` | `201`; validation `422`; unauthenticated `401`; unauthorized `403`. |
-| `PATCH /admin/products/{product}` | `manage-products` | Any non-empty subset of the create fields | `200`; validation `422`; missing product `404`; unauthenticated `401`; unauthorized `403`. |
+| `GET /products` | Public | Optional `page` query parameter | `200`; newest product IDs first; 15 products per page by default; primary image only. |
+| `GET /products/{product}` | Public | Product ID in path | `200` with all product images; missing product `404`. |
+| `POST /admin/products` | `manage-products` | `multipart/form-data`: `name`, `description`, `price`, `stock`, and `images[]` | `201`; validation `422`; unauthenticated `401`; unauthorized `403`. |
+| `PATCH /admin/products/{product}` | `manage-products` | Any non-empty subset of `name`, `description`, `price`, and `stock`; images are not accepted | `200` with all product images; validation `422`; missing product `404`; unauthenticated `401`; unauthorized `403`. |
+| `POST /admin/products/{product}/images` | `manage-products` | `multipart/form-data`: `images[]` | `201` with all product images; validation `422`; more than 8 total images `409`; missing product `404`; unauthenticated `401`; unauthorized `403`. |
+| `DELETE /admin/products/{product}/images/{image}` | `manage-products` | Product and image IDs in path | `204`; deleting the final image `409`; missing product or image outside the product `404`; unauthenticated `401`; unauthorized `403`. |
+| `PATCH /admin/products/{product}/images/reorder` | `manage-products` | `image_ids`: all image IDs for the product, once each, in the desired order | `200` with all product images; invalid image list `422`; missing product `404`; unauthenticated `401`; unauthorized `403`. |
 | `DELETE /admin/products/{product}` | `manage-products` | Product ID in path | `204`; product in any cart `409`; missing product `404`; unauthenticated `401`; unauthorized `403`. |
 
 Product creation requires a name (up to 255 characters), description, price (0 to 99,999,999.99 with at most two decimal places), and integer stock (0 to 2,147,483,647). Updates accept one or more of those fields; provided fields remain subject to the same constraints.
 
+Product creation requires between 1 and 8 images. Uploads accept JPG, JPEG, PNG, and WebP files up to 5 MB each. Image positions are zero-based; position `0` is the primary image. Adding images appends them after the existing images, up to 8 total. Deleting an image reindexes the remaining images, and the final image cannot be deleted. To reorder images, send every image ID belonging to the product exactly once. For example: `{"image_ids": [15, 12, 18]}`. Deleting a product also removes its stored image files.
+
+Product image URLs point to the public storage disk and use the configured `APP_URL`. Serve the local disk through `public/storage`, and configure PHP and web-server request limits for up to eight 5 MB files per request plus multipart overhead. Product creation and image uploads require `multipart/form-data`; the product update endpoint accepts product fields only and rejects `images`.
+
 ## Cart
 
-All cart endpoints require a bearer token. A cart is created on first read or write. Cart responses are returned under `data` with `id`, `items`, and `subtotal`. Each item includes `id`, `product`, `quantity`, `unit_price`, and `line_total`. Cart totals use the current product price and are returned as decimal strings.
+All cart endpoints require a bearer token. A cart is created on first read or write. Cart responses are returned under `data` with `id`, `items`, and `subtotal`. Each item includes `id`, `product`, `quantity`, `unit_price`, and `line_total`; its product includes only the primary image. Cart totals use the current product price and are returned as decimal strings.
 
 | Method and path | Request | Success and common errors |
 | --- | --- | --- |
@@ -133,4 +140,4 @@ Validation failures use HTTP `422` with a message and field-keyed errors:
 }
 ~~~
 
-Business conflicts, including insufficient stock, empty-cart order creation, invalid order transitions, and deletion of a product present in a cart, use HTTP `409` with a `message`. Unauthenticated requests use `401`; permission failures use `403`; missing resources and resources outside the caller's scope use `404`. Rate limiting uses `429`. Successful product deletion returns `204` with no response body.
+Business conflicts, including insufficient stock, empty-cart order creation, invalid order transitions, deletion of a product present in a cart, exceeding the product image limit, and deleting the final product image, use HTTP `409` with a `message`. Unauthenticated requests use `401`; permission failures use `403`; missing resources and resources outside the caller's scope use `404`. Rate limiting uses `429`. Successful product and image deletion returns `204` with no response body.
