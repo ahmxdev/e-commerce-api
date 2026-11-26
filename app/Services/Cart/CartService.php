@@ -28,7 +28,6 @@ class CartService
             $cart = $lockedUser->cart()->firstOrCreate();
             $product = Product::query()
                 ->whereKey($productId)
-                ->lockForUpdate()
                 ->firstOrFail();
 
             if ($product->stock < 1) {
@@ -75,7 +74,6 @@ class CartService
 
             $product = Product::query()
                 ->whereKey($cartItem->product_id)
-                ->lockForUpdate()
                 ->firstOrFail();
 
             // Only validate stock when increasing the item quantity.
