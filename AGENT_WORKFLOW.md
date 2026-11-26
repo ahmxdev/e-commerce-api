@@ -1,54 +1,51 @@
 # Collaboration Workflow
 
-This document records the user's preferred way to plan and implement features in this repository. It supplements `AGENTS.md` and `CLAUDE.md`; follow their project and framework requirements as well.
+Follow this workflow for feature work with the user. `AGENTS.md` remains the source of framework, Laravel, testing, and repository-wide technical rules; this file defines how to plan and deliver work with the user.
 
-## User-Led, Sequential Work
+## Communication and Approval
 
-1. **Discovery comes first.** When asked to understand an area or plan a feature, inspect the current project and relevant instructions before proposing implementation. Summarize what exists, then provide a numbered, ordered task list. Do not edit code during a discovery-only request.
-2. **Implement one requested task at a time.** Keep the agreed numbering stable. When the user asks for a specific point, complete that point only. Do not continue to the next point or bundle unrelated cleanup into it.
-3. **Review feedback before acting.** If the user asks for an evaluation or asks why something is done, inspect the current code and explain what is correct, incorrect, or conditional. Do not treat a review question as permission to edit. When the user asks to correct or implement a suggestion, change only the relevant scope.
-4. **Check the actual code and installed APIs.** Do not rely on assumptions from earlier messages when files may have changed. Read the current implementation, sibling files, relevant tests, project rules, and installed package versions. Distinguish similar behavior precisely; for example, Laravel validation omits unruled input from `validated()` but does not necessarily reject an unknown top-level field.
-5. **Report progress after every task.** State what changed, where it changed, how it was checked, and which numbered tasks remain. Preserve completed work and decisions across turns.
-6. **Communicate in Arabic.** The user prefers Arabic discussion. Keep code identifiers, route names, and error codes unchanged, and explain them in plain language.
+- Communicate with the user in Arabic. Keep code identifiers, route names, and error codes unchanged.
+- Treat review questions and planning discussions as read-only unless the user explicitly asks for implementation.
+- Before implementation, present an ordered task breakdown with each task's goal, scope, dependencies, and completion criteria. Wait for the user's approval or comments before editing feature code.
+- Work on one approved task at a time. After completing it, report the files changed, behavior delivered, verification performed, and remaining tasks. Stop and wait for the user's direction before starting the next task.
+- If a material product or API behavior is unresolved, explain the options and ask only about that decision before implementing the affected task.
 
-Avoid unnecessary clarification when the user's intent can be inferred safely. If a choice materially changes product behavior and cannot be inferred, explain the tradeoff and ask only for that decision.
+## Start of Each Task
 
-## Repository Conventions
+1. Inspect the current repository state, project instructions, and the relevant implementation and tests. Do not rely on assumptions from earlier turns when files may have changed.
+2. Distinguish existing user changes from changes made for the current task. Preserve user changes; never reset, overwrite, or include unrelated work.
+3. State the task's scope and acceptance criteria before editing if they have not already been approved.
+4. Implement only that task. Avoid unrelated cleanup, architectural changes, and feature work assigned to later tasks.
 
-- This is an API-only Laravel application; there is no storefront frontend in the repository.
-- API routes are versioned under `/api/v1`. Follow the existing module route-file pattern and protect user-specific cart routes with `auth:sanctum`.
-- Follow existing boundaries and naming: Eloquent models and relationships, Form Requests, API Resources, focused controllers, migrations, factories, and Pest feature tests. Inspect sibling files before choosing structure.
-- Use Artisan generators with `--no-interaction` for Laravel files where a generator exists. Do not add dependencies or new architectural folders without authorization.
-- Read the relevant project and skill rules before implementation. Confirm package versions before using version-sensitive APIs.
-- Add factories for new models. Add a seeder only when there is a concrete use for seeded data; the user specifically asked not to add a cart seeder without such a reason.
-- When behavior changes, add meaningful regression coverage and run the narrowest affected tests. Run `vendor/bin/pint --dirty --format agent` after changing PHP files.
+## Verification and Reporting
 
-## Test Organization
+- Follow the testing instructions in `AGENTS.md`. Add meaningful regression coverage and run the narrowest affected tests for behavior changes.
+- Run the required formatter after modifying PHP files. Do not claim verification that was not performed.
+- At the end of each task, report its outcome in Arabic, including changed files, tests and their results, any limitations, and the next task awaiting the user's direction.
+- Do not start the full test suite or another task automatically when project or user instructions require the user to review first.
 
-Keep feature test files focused on one action, following the existing product tests. For the cart, use files such as:
+## Product Image Feature Decisions
 
-- `tests/Feature/Cart/ShowCartTest.php`
-- `tests/Feature/Cart/StoreCartItemTest.php`
-- `tests/Feature/Cart/UpdateCartItemTest.php`
-- `tests/Feature/Cart/DeleteCartItemTest.php`
-- `tests/Feature/Cart/ClearCartTest.php`
+Treat these as the agreed requirements unless the user changes them:
 
-Do not regroup the cart lifecycle into one omnibus controller test. Keep product deletion coverage in `tests/Feature/Products/DeleteProductTest.php`. Use factories for persisted test data and assert both the HTTP result and database state for writes.
+- Store original image files on the configured local public disk. The deployment target is a durable, single application instance.
+- A product has between 1 and 8 images. Position `0` is the primary image.
+- Product creation accepts its initial images. Product `PATCH` updates product data only and rejects image uploads.
+- Keep a separate endpoint for adding images after product creation. It also appends new images.
+- Deleting an image reindexes the remaining images. The final image cannot be deleted.
+- Reordering requires the IDs of all images belonging to that product exactly once, in the desired order.
+- Accept JPG, JPEG, PNG, and WebP images up to 5 MB each. Do not generate thumbnails or image variants unless the user asks.
 
-## Cart Decisions Established With the User
+## Product Image Task Order
 
-Treat these as the current product requirements unless the user changes them:
+Keep this numbering stable unless the user approves a revised plan:
 
-- Cart is for authenticated users only, with one cart per user. There is no guest-cart flow.
-- Cart displays current product prices; it does not lock prices or reserve stock. Stock must be checked again during any future checkout/order flow.
-- `POST /api/v1/cart/items` accepts `product_id` and adds exactly one unit. A repeated request for a product already in the cart leaves the quantity unchanged and returns the existing cart successfully (`200`). A newly added item returns `201`.
-- `PATCH /api/v1/cart/items/{cartItemId}` sets the requested final quantity; it does not increment it. It must enforce the current stock limit.
-- Cart operations are scoped to the authenticated user's cart. Requests for another user's item return `404`.
-- Product deletion is blocked while any cart contains that product and returns `409 Conflict`; the foreign key also restricts deletion at the database level.
-- Cart totals are returned as decimal strings and are calculated from integer cents. Resources expect the `items.product` relationship to be loaded.
-- Current cart locks serialize operations through the user's row; product rows are locked while stock is checked. Per-item locks were removed as redundant under that shared cart-operation lock. Any future code path that mutates the cart must follow the same locking protocol.
-- Checkout, orders, and payment are separate future modules, outside the current cart scope.
+1. Read-only inspection of the current repository state, relevant instructions, product implementation, and tests; report findings and confirm scope.
+2. Add image persistence: migration, model, product relationship, and factory where appropriate.
+3. Support image uploads during product creation, including validation, storage, failure cleanup, and response data.
+4. Support appending images through the separate post-creation add-images endpoint. Keep product `PATCH` limited to product data and reject images there.
+5. Support image deletion, protect the final image, and reindex remaining positions.
+6. Support image reordering with complete ownership and uniqueness validation.
+7. Complete response and lifecycle integration, including product image visibility, cleanup when deleting a product, and final affected integration checks.
 
-## Verification Note
-
-On 2026-11-22, all existing feature tests passed (90 tests, 304 assertions), and the cart routes were confirmed to use `auth:sanctum`. The full `php artisan test --compact` command stopped before running tests because `phpunit.xml` references a missing `tests/Unit` directory. Recheck this repository state before relying on it; report the full-suite limitation accurately and run the existing feature suite separately when needed.
+Each task includes its own relevant tests and verification. Do not begin a later task until the user reviews the current task and asks to continue.

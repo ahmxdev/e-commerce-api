@@ -3,6 +3,7 @@
 use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\Product;
+use App\Models\ProductImage;
 use App\Models\User;
 
 function showCartHeaders(User $user): array
@@ -29,6 +30,14 @@ test('show returns only the authenticated user cart items', function (): void {
     $otherCart = Cart::factory()->for($otherUser)->create();
     $product = Product::factory()->create(['price' => '10.00', 'stock' => 5]);
     $otherProduct = Product::factory()->create(['price' => '25.00', 'stock' => 5]);
+    $primaryImage = ProductImage::factory()->for($product)->create([
+        'path' => 'products/'.$product->id.'/primary.jpg',
+        'position' => 0,
+    ]);
+    ProductImage::factory()->for($product)->create([
+        'path' => 'products/'.$product->id.'/secondary.jpg',
+        'position' => 1,
+    ]);
     CartItem::factory()->for($cart)->for($product)->create(['quantity' => 2]);
     CartItem::factory()->for($otherCart)->for($otherProduct)->create(['quantity' => 1]);
 
@@ -36,6 +45,9 @@ test('show returns only the authenticated user cart items', function (): void {
         ->assertOk()
         ->assertJsonCount(1, 'data.items')
         ->assertJsonPath('data.items.0.product.id', $product->id)
+        ->assertJsonCount(1, 'data.items.0.product.images')
+        ->assertJsonPath('data.items.0.product.images.0.id', $primaryImage->id)
+        ->assertJsonPath('data.items.0.product.images.0.is_primary', true)
         ->assertJsonPath('data.subtotal', '20.00');
 });
 

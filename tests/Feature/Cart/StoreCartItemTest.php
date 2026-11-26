@@ -3,6 +3,7 @@
 use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\Product;
+use App\Models\ProductImage;
 use App\Models\User;
 
 function storeCartItemHeaders(User $user): array
@@ -20,11 +21,21 @@ test('store adds one unit to the authenticated user cart', function (): void {
     $user = User::factory()->create();
     Cart::factory()->for($user)->create();
     $product = Product::factory()->create(['price' => '12.50', 'stock' => 4]);
+    $primaryImage = ProductImage::factory()->for($product)->create([
+        'path' => 'products/'.$product->id.'/primary.jpg',
+        'position' => 0,
+    ]);
+    ProductImage::factory()->for($product)->create([
+        'path' => 'products/'.$product->id.'/secondary.jpg',
+        'position' => 1,
+    ]);
 
     $response = $this->postJson('/api/v1/cart/items', ['product_id' => $product->id], storeCartItemHeaders($user))
         ->assertCreated()
         ->assertJsonCount(1, 'data.items')
         ->assertJsonPath('data.items.0.product.id', $product->id)
+        ->assertJsonCount(1, 'data.items.0.product.images')
+        ->assertJsonPath('data.items.0.product.images.0.id', $primaryImage->id)
         ->assertJsonPath('data.items.0.quantity', 1)
         ->assertJsonPath('data.items.0.unit_price', '12.50')
         ->assertJsonPath('data.items.0.line_total', '12.50')

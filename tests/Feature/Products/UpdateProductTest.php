@@ -2,7 +2,10 @@
 
 use App\Enums\Auth\PermissionEnum;
 use App\Models\Product;
+use App\Models\ProductImage;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Permission;
 
 function updateProductManagerHeaders(): array
@@ -22,18 +25,44 @@ test('permitted user can partially update a product', function (): void {
         'price' => 49.99,
         'stock' => 8,
     ]);
+    $image = ProductImage::factory()->for($product)->create([
+        'path' => 'products/'.$product->id.'/primary.jpg',
+        'position' => 0,
+    ]);
 
     $this->patchJson("/api/v1/admin/products/{$product->id}", ['stock' => 3], updateProductManagerHeaders())
         ->assertOk()
         ->assertJsonPath('data.name', 'Desk Lamp')
         ->assertJsonPath('data.price', '49.99')
-        ->assertJsonPath('data.stock', 3);
+        ->assertJsonPath('data.stock', 3)
+        ->assertJsonCount(1, 'data.images')
+        ->assertJsonPath('data.images.0.id', $image->id);
 
     $this->assertDatabaseHas(Product::class, [
         'id' => $product->id,
         'name' => 'Desk Lamp',
         'stock' => 3,
     ]);
+});
+
+test('returns 422 when product images are included in a patch request', function (): void {
+    Storage::fake('public');
+    $product = Product::factory()->create(['stock' => 8]);
+
+    $this->post("/api/v1/admin/products/{$product->id}", [
+        '_method' => 'PATCH',
+        'stock' => 3,
+        'images' => [UploadedFile::fake()->image('side.jpg')],
+    ], [
+        ...updateProductManagerHeaders(),
+        'Accept' => 'application/json',
+    ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['images']);
+
+    $this->assertSame(8, $product->fresh()->stock);
+    $this->assertDatabaseCount(ProductImage::class, 0);
+    $this->assertSame([], Storage::disk('public')->allFiles());
 });
 
 test('returns 403 and leaves product unchanged for a user without permission', function (): void {

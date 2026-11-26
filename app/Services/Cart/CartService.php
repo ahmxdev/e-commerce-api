@@ -7,6 +7,7 @@ use App\Exceptions\InsufficientProductStockException;
 use App\Models\Cart;
 use App\Models\Product;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 
 class CartService
@@ -16,7 +17,7 @@ class CartService
         return DB::transaction(function () use ($user): Cart {
             $lockedUser = $this->lockUser($user);
 
-            return $lockedUser->cart()->firstOrCreate()->load('items.product');
+            return $this->loadCartWithPrimaryProductImages($lockedUser->cart()->firstOrCreate());
         });
     }
 
@@ -46,7 +47,7 @@ class CartService
                 $cartItem->update(['quantity' => $cartItem->quantity + 1]);
 
                 return new AddCartItemResult(
-                    cart: $cart->load('items.product'),
+                    cart: $this->loadCartWithPrimaryProductImages($cart),
                     created: false,
                 );
             }
@@ -57,7 +58,7 @@ class CartService
             ]);
 
             return new AddCartItemResult(
-                cart: $cart->load('items.product'),
+                cart: $this->loadCartWithPrimaryProductImages($cart),
                 created: true,
             );
         });
@@ -84,7 +85,7 @@ class CartService
 
             $cartItem->update(['quantity' => $quantity]);
 
-            return $cart->load('items.product');
+            return $this->loadCartWithPrimaryProductImages($cart);
         });
     }
 
@@ -99,7 +100,7 @@ class CartService
 
             $cartItem->delete();
 
-            return $cart->load('items.product');
+            return $this->loadCartWithPrimaryProductImages($cart);
         });
     }
 
@@ -110,7 +111,7 @@ class CartService
             $cart = $lockedUser->cart()->firstOrCreate();
             $cart->items()->delete();
 
-            return $cart->load('items.product');
+            return $this->loadCartWithPrimaryProductImages($cart);
         });
     }
 
@@ -120,5 +121,14 @@ class CartService
             ->whereKey($user->getKey())
             ->lockForUpdate()
             ->firstOrFail();
+    }
+
+    private function loadCartWithPrimaryProductImages(Cart $cart): Cart
+    {
+        return $cart->load([
+            'items.product.images' => function (HasMany $images): void {
+                $images->where('position', 0);
+            },
+        ]);
     }
 }
