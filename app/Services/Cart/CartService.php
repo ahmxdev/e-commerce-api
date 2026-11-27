@@ -124,6 +124,7 @@ class CartService
     private function loadCartWithPrimaryProductImages(Cart $cart): Cart
     {
         return $cart->load([
+            'items.product.category',
             'items.product.images' => function (HasMany $images): void {
                 $images->where('position', 0);
             },

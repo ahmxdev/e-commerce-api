@@ -26,6 +26,7 @@ class UpdateProductRequest extends FormRequest
             'description' => ['sometimes', 'required', 'string'],
             'price' => ['sometimes', 'required', 'numeric', 'decimal:0,2', 'min:0', 'max:99999999.99'],
             'stock' => ['sometimes', 'required', 'integer', 'min:0', 'max:2147483647'],
+            'category_id' => ['sometimes', 'required', 'integer', 'exists:categories,id'],
             'images' => ['prohibited'],
         ];
     }
@@ -39,7 +40,7 @@ class UpdateProductRequest extends FormRequest
     {
         return [
             function (Validator $validator): void {
-                if (! $this->hasAny(['name', 'description', 'price', 'stock'])) {
+                if (! $this->hasAny(['name', 'description', 'price', 'stock', 'category_id'])) {
                     $validator->errors()->add(
                         'product',
                         'At least one product field must be provided.'

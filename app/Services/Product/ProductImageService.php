@@ -29,7 +29,7 @@ class ProductImageService
                 $product = Product::create($productAttributes);
                 $this->appendImages($product, $imageFiles, $storedPaths);
 
-                return $product->load('images');
+                return $product->load(['category', 'images']);
             });
         } catch (Throwable $exception) {
             $this->deleteStoredFilesAfterFailure($storedPaths);
@@ -54,7 +54,7 @@ class ProductImageService
 
                 $this->appendImages($lockedProduct, $imageFiles, $storedPaths);
 
-                return $lockedProduct->load('images');
+                return $lockedProduct->load(['category', 'images']);
             });
         } catch (Throwable $exception) {
             $this->deleteStoredFilesAfterFailure($storedPaths);
@@ -135,7 +135,7 @@ class ProductImageService
                 $image->save();
             }
 
-            return $lockedProduct->load('images');
+            return $lockedProduct->load(['category', 'images']);
         });
     }
 

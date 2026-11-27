@@ -32,7 +32,7 @@ class AdminProductController extends Controller
     {
         $product->update($request->validated());
 
-        return new ProductResource($product->refresh()->load('images'));
+        return new ProductResource($product->refresh()->load(['category', 'images']));
     }
 
     public function destroy(Product $product): JsonResponse|Response
