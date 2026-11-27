@@ -27,6 +27,7 @@ test('permitted user can reorder all images and make a different image primary',
         'image_ids' => [$images[2]->id, $images[0]->id, $images[1]->id],
     ], reorderProductImagesManagerHeaders())
         ->assertOk()
+        ->assertJsonPath('data.category.id', $product->category_id)
         ->assertJsonPath('data.images.0.id', $images[2]->id)
         ->assertJsonPath('data.images.0.position', 0)
         ->assertJsonPath('data.images.0.is_primary', true)

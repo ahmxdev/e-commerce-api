@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\Auth\PermissionEnum;
+use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\User;
@@ -24,12 +25,14 @@ function storeProductManagerHeaders(): array
 
 test('permitted user can create a product', function (): void {
     Storage::fake('public');
+    $category = Category::factory()->create(['name' => 'Lighting']);
 
     $productData = [
         'name' => 'Desk Lamp',
         'description' => 'Adjustable reading lamp.',
         'price' => 49.99,
         'stock' => 5,
+        'category_id' => $category->id,
         'images' => [
             UploadedFile::fake()->image('front.jpg'),
             UploadedFile::fake()->image('side.png'),
@@ -43,6 +46,8 @@ test('permitted user can create a product', function (): void {
         ->assertCreated()
         ->assertJsonPath('data.name', 'Desk Lamp')
         ->assertJsonPath('data.price', '49.99')
+        ->assertJsonPath('data.category.id', $category->id)
+        ->assertJsonPath('data.category.name', 'Lighting')
         ->assertJsonCount(2, 'data.images')
         ->assertJsonPath('data.images.0.position', 0)
         ->assertJsonPath('data.images.0.is_primary', true)
@@ -74,18 +79,21 @@ test('guest cannot create a product', function (): void {
 test('returns 422 when required product fields are missing', function (): void {
     $this->postJson('/api/v1/admin/products', [], storeProductManagerHeaders())
         ->assertUnprocessable()
-        ->assertJsonValidationErrors(['name', 'description', 'price', 'stock'])
+        ->assertJsonValidationErrors(['name', 'description', 'price', 'stock', 'category_id'])
         ->assertJsonPath('errors.name.0', 'The name field is required.');
 
     $this->assertDatabaseCount(Product::class, 0);
 });
 
 test('returns 422 when product images are missing', function (): void {
+    $category = Category::factory()->create();
+
     $this->postJson('/api/v1/admin/products', [
         'name' => 'Desk Lamp',
         'description' => 'Adjustable reading lamp.',
         'price' => 49.99,
         'stock' => 5,
+        'category_id' => $category->id,
     ], storeProductManagerHeaders())
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['images']);
@@ -95,12 +103,14 @@ test('returns 422 when product images are missing', function (): void {
 
 test('returns 422 when product image files are invalid', function (): void {
     Storage::fake('public');
+    $category = Category::factory()->create();
 
     $this->post('/api/v1/admin/products', [
         'name' => 'Desk Lamp',
         'description' => 'Adjustable reading lamp.',
         'price' => 49.99,
         'stock' => 5,
+        'category_id' => $category->id,
         'images' => [UploadedFile::fake()->create('notes.txt', 1, 'text/plain')],
     ], [
         ...storeProductManagerHeaders(),
@@ -116,12 +126,14 @@ test('returns 422 when product image files are invalid', function (): void {
 
 test('returns 422 when product creation contains more than eight images', function (): void {
     Storage::fake('public');
+    $category = Category::factory()->create();
 
     $this->post('/api/v1/admin/products', [
         'name' => 'Desk Lamp',
         'description' => 'Adjustable reading lamp.',
         'price' => 49.99,
         'stock' => 5,
+        'category_id' => $category->id,
         'images' => collect(range(1, 9))
             ->map(fn (int $index): UploadedFile => UploadedFile::fake()->image("image-{$index}.jpg"))
             ->all(),
@@ -138,12 +150,14 @@ test('returns 422 when product creation contains more than eight images', functi
 
 test('returns 422 when a product image exceeds five megabytes', function (): void {
     Storage::fake('public');
+    $category = Category::factory()->create();
 
     $this->post('/api/v1/admin/products', [
         'name' => 'Desk Lamp',
         'description' => 'Adjustable reading lamp.',
         'price' => 49.99,
         'stock' => 5,
+        'category_id' => $category->id,
         'images' => [UploadedFile::fake()->image('large.jpg')->size(5121)],
     ], [
         ...storeProductManagerHeaders(),
@@ -158,6 +172,7 @@ test('returns 422 when a product image exceeds five megabytes', function (): voi
 
 test('removes uploaded files and database records when saving a product image fails', function (): void {
     Storage::fake('public');
+    $category = Category::factory()->create();
     $imageFiles = [
         UploadedFile::fake()->image('front.jpg'),
         UploadedFile::fake()->image('side.jpg'),
@@ -170,6 +185,7 @@ test('removes uploaded files and database records when saving a product image fa
             'description' => 'Adjustable reading lamp.',
             'price' => 49.99,
             'stock' => 5,
+            'category_id' => $category->id,
         ], $imageFiles))->toThrow(QueryException::class);
     } finally {
         Str::createRandomStringsNormally();
@@ -177,6 +193,27 @@ test('removes uploaded files and database records when saving a product image fa
 
     $this->assertDatabaseCount(Product::class, 0);
     $this->assertDatabaseCount(ProductImage::class, 0);
+    $this->assertSame([], Storage::disk('public')->allFiles());
+});
+
+test('returns 422 when a product category does not exist', function (): void {
+    Storage::fake('public');
+
+    $this->post('/api/v1/admin/products', [
+        'name' => 'Desk Lamp',
+        'description' => 'Adjustable reading lamp.',
+        'price' => 49.99,
+        'stock' => 5,
+        'category_id' => 999,
+        'images' => [UploadedFile::fake()->image('desk-lamp.jpg')],
+    ], [
+        ...storeProductManagerHeaders(),
+        'Accept' => 'application/json',
+    ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['category_id']);
+
+    $this->assertDatabaseCount(Product::class, 0);
     $this->assertSame([], Storage::disk('public')->allFiles());
 });
 
@@ -188,6 +225,7 @@ test('returns 422 for invalid product prices and stock values', function (string
         'description' => 'Adjustable reading lamp.',
         'price' => 49.99,
         'stock' => 5,
+        'category_id' => Category::factory()->create()->id,
         'images' => [UploadedFile::fake()->image('desk-lamp.jpg')],
     ];
     $productData[$field] = $value;

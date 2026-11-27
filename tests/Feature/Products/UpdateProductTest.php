@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\Auth\PermissionEnum;
+use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\User;
@@ -35,6 +36,8 @@ test('permitted user can partially update a product', function (): void {
         ->assertJsonPath('data.name', 'Desk Lamp')
         ->assertJsonPath('data.price', '49.99')
         ->assertJsonPath('data.stock', 3)
+        ->assertJsonPath('data.category.id', $product->category_id)
+        ->assertJsonPath('data.category.name', $product->category->name)
         ->assertJsonCount(1, 'data.images')
         ->assertJsonPath('data.images.0.id', $image->id);
 
@@ -42,6 +45,55 @@ test('permitted user can partially update a product', function (): void {
         'id' => $product->id,
         'name' => 'Desk Lamp',
         'stock' => 3,
+    ]);
+});
+
+test('permitted user can change a product category', function (): void {
+    $product = Product::factory()->create();
+    $category = Category::factory()->create(['name' => 'Lighting']);
+
+    $this->patchJson("/api/v1/admin/products/{$product->id}", [
+        'category_id' => $category->id,
+    ], updateProductManagerHeaders())
+        ->assertOk()
+        ->assertJsonPath('data.category.id', $category->id)
+        ->assertJsonPath('data.category.name', 'Lighting');
+
+    $this->assertDatabaseHas(Product::class, [
+        'id' => $product->id,
+        'category_id' => $category->id,
+    ]);
+});
+
+test('returns 422 when a product category is cleared', function (): void {
+    $product = Product::factory()->create();
+    $originalCategoryId = $product->category_id;
+
+    $this->patchJson("/api/v1/admin/products/{$product->id}", [
+        'category_id' => null,
+    ], updateProductManagerHeaders())
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['category_id']);
+
+    $this->assertDatabaseHas(Product::class, [
+        'id' => $product->id,
+        'category_id' => $originalCategoryId,
+    ]);
+});
+
+test('returns 422 when a product category does not exist', function (): void {
+    $product = Product::factory()->create();
+    $originalCategoryId = $product->category_id;
+
+    $this->patchJson("/api/v1/admin/products/{$product->id}", [
+        'category_id' => 999,
+    ], updateProductManagerHeaders())
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['category_id']);
+
+    $this->assertDatabaseHas(Product::class, [
+        'id' => $product->id,
+        'category_id' => $originalCategoryId,
     ]);
 });
 

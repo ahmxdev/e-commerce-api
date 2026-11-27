@@ -18,6 +18,8 @@ test('public can view an individual product', function (): void {
         ->assertOk()
         ->assertJsonPath('data.id', $product->id)
         ->assertJsonPath('data.name', 'Desk Lamp')
+        ->assertJsonPath('data.category.id', $product->category_id)
+        ->assertJsonPath('data.category.name', $product->category->name)
         ->assertJsonCount(2, 'data.images')
         ->assertJsonPath('data.images.0.id', $firstImage->id)
         ->assertJsonPath('data.images.0.position', 0)

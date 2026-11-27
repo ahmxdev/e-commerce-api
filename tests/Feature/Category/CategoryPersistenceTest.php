@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\Auth\PermissionEnum;
 use App\Models\Category;
 use App\Models\Product;
 use Database\Seeders\CategorySeeder;
@@ -12,6 +13,19 @@ test('seeds the uncategorized root category through the database seeder', functi
     $this->assertDatabaseHas(Category::class, [
         'name' => 'Uncategorized',
         'parent_id' => null,
+    ]);
+});
+
+test('database seeder creates the root category and category management permission', function (): void {
+    $this->seed();
+
+    $this->assertDatabaseHas(Category::class, [
+        'name' => 'Uncategorized',
+        'parent_id' => null,
+    ]);
+    $this->assertDatabaseHas('permissions', [
+        'name' => PermissionEnum::ManageCategories->value,
+        'guard_name' => 'web',
     ]);
 });
 

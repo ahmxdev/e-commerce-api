@@ -37,6 +37,7 @@ test('permitted user can append product images', function (): void {
         'Accept' => 'application/json',
     ])
         ->assertCreated()
+        ->assertJsonPath('data.category.id', $product->category_id)
         ->assertJsonCount(3, 'data.images')
         ->assertJsonPath('data.images.0.position', 0)
         ->assertJsonPath('data.images.0.is_primary', true)

@@ -14,7 +14,7 @@ class AdminCategoryController extends Controller
 {
     public function store(StoreCategoryRequest $request): JsonResponse
     {
-        $category = Category::query()->create($request->validated());
+        $category = Category::create($request->validated());
 
         return (new CategoryResource($category))
             ->response()

@@ -45,6 +45,7 @@ test('show returns only the authenticated user cart items', function (): void {
         ->assertOk()
         ->assertJsonCount(1, 'data.items')
         ->assertJsonPath('data.items.0.product.id', $product->id)
+        ->assertJsonPath('data.items.0.product.category.id', $product->category_id)
         ->assertJsonCount(1, 'data.items.0.product.images')
         ->assertJsonPath('data.items.0.product.images.0.id', $primaryImage->id)
         ->assertJsonPath('data.items.0.product.images.0.is_primary', true)
