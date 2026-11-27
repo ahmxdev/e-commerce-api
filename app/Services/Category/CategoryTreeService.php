@@ -16,7 +16,7 @@ class CategoryTreeService
             ->orderBy('name')
             ->orderBy('id')
             ->get();
-        $categoriesById = $categories->keyBy(fn (Category $category): int => (int) $category->getKey());
+        $categoriesById = $categories->keyBy(fn(Category $category): int => (int) $category->getKey());
         $rootCategories = collect();
 
         foreach ($categories as $category) {
@@ -46,6 +46,8 @@ class CategoryTreeService
     public function idsInSubtree(int $categoryId): array
     {
         $parentIdsByCategoryId = Category::query()->pluck('parent_id', 'id');
+
+        /** @var array<int, list<int>> $childIdsByParentId */
         $childIdsByParentId = [];
 
         foreach ($parentIdsByCategoryId as $id => $parentId) {
